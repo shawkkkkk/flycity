@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07100d">
+  <meta name="description" content="FlyCity is a persistent 3D world inhabited by autonomous digital fruit flies.">
+  <title>FlyCity — autonomous digital flies</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main id="app">
+    <div id="world" aria-label="3D spectator view of FlyCity"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="crosshair" aria-hidden="true"><i></i><i></i></div>
+
+    <header class="hud topbar">
+      <div class="brand">
+        <span class="brand-fly" aria-hidden="true">✣</span>
+        <div><b>FLYCITY</b><small>PERSISTENT AUTONOMOUS ECOLOGY</small></div>
+      </div>
+      <div class="status-strip">
+        <span><i class="dot" id="socket-dot"></i><b id="connection-label">CONNECTING</b></span>
+        <span>POP <b id="population">100</b></span>
+        <span>DAY <b id="day">001</b></span>
+        <span>TIME <b id="world-time">08:00</b></span>
+        <span class="model-pill" id="model-pill">MIND / DETECTING</span>
+      </div>
+    </header>
+
+    <aside class="hud panel left-panel">
+      <div class="panel-tabs" role="tablist">
+        <button class="tab active" type="button" data-tab="activity">ACTIVITY</button>
+        <button class="tab" type="button" data-tab="residents">RESIDENTS</button>
+      </div>
+      <section id="activity-tab" class="tab-panel active">
+        <div class="panel-heading"><span>LIVE CITY FEED</span><small id="event-count">0 EVENTS</small></div>
+        <div id="events" class="event-list"><p class="muted">Waiting for the city…</p></div>
+      </section>
+      <section id="residents-tab" class="tab-panel">
+        <label class="search"><span>FIND FLY</span><input id="fly-search" type="search" placeholder="amber_wing…" autocomplete="off"></label>
+        <div class="panel-heading"><span>LIVING RESIDENTS</span><small id="resident-count">100</small></div>
+        <div id="residents" class="resident-list"></div>
+      </section>
+    </aside>
+
+    <aside class="hud panel inspector" id="inspector" aria-live="polite">
+      <div class="empty-inspector" id="empty-inspector">
+        <span class="specimen">NO FLY TAGGED</span>
+        <h2>Select a resident</h2>
+        <p>Center a fly in your crosshair and press <kbd>E</kbd>, or choose one from the resident list.</p>
+      </div>
+      <div id="fly-detail" class="hidden">
+        <div class="fly-title-row">
+          <div><span class="specimen" id="fly-id">FLY / 001</span><h2 id="fly-name">Amber Wing</h2><p id="fly-handle">@amber_wing</p></div>
+          <span class="fly-swatch" id="fly-swatch"></span>
+        </div>
+        <div class="action-box"><span>CURRENT INTENTION</span><b id="fly-action">EXPLORE</b><p id="fly-goal">Exploring the city</p></div>
+        <div class="needs" id="needs"></div>
+        <div class="thought"><span>PRIVATE THOUGHT</span><p id="fly-thought">—</p><small id="decision-source">decision / —</small></div>
+        <div class="thought"><span>LAST SPEECH</span><p id="fly-speech">—</p></div>
+        <div class="inspector-grid">
+          <div><span>AGE</span><b id="fly-age">0d</b></div><div><span>GEN</span><b id="fly-gen">0</b></div>
+          <div><span>SEX</span><b id="fly-sex">—</b></div><div><span>CHILDREN</span><b id="fly-children">0</b></div>
+        </div>
+        <div class="subsection"><div class="panel-heading"><span>MEMORIES</span></div><div id="memories" class="mini-list"></div></div>
+        <div class="subsection"><div class="panel-heading"><span>RELATIONSHIPS</span></div><div id="relationships" class="mini-list"></div></div>
+        <div class="inspector-actions">
+          <button id="follow-button" class="primary" type="button">FOLLOW FLY <kbd>F</kbd></button>
+          <button id="clear-button" type="button">CLEAR TAG</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="hud controls-card">
+      <span><kbd>WASD</kbd> MOVE</span><span><kbd>SPACE</kbd>/<kbd>SHIFT</kbd> UP/DOWN</span><span><kbd>MOUSE</kbd> LOOK</span><span><kbd>E</kbd> TAG</span><span><kbd>F</kbd> FOLLOW</span><span><kbd>ESC</kbd> RELEASE</span>
+    </div>
+
+    <div class="hud enter-card" id="enter-card">
+      <span class="eyebrow">SPECTATOR MODE / READ ONLY</span>
+      <h1>100 flies live here.</h1>
+      <p>They eat, sleep, socialize, reproduce, remember each other, and make their own high-level decisions. You can watch. You cannot command them.</p>
+      <button id="enter-button" type="button">ENTER FLYCITY</button>
+      <small>Clicking enters mouse-look mode. Press Esc at any time to release the cursor.</small>
+    </div>
+
+    <div class="hud follow-badge hidden" id="follow-badge">FOLLOWING <b id="follow-name">—</b> · <span>F TO RELEASE</span></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </main>
+</body>
+</html>
