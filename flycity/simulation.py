@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from .config import Settings
+from .dialogue import generate_turn
 from .mind import OpenAIMind
 from .store import SnapshotStore
 
@@ -54,7 +55,7 @@ class FlyCity:
     def __init__(self,cfg:Settings,store:SnapshotStore):
         self.cfg,self.store=cfg,store; self.rng=random.Random(cfg.seed); self.mind=OpenAIMind(cfg.llm_model,cfg.llm_calls_per_minute)
         self.flies:dict[int,Fly]={}; self.events:list[dict[str,Any]]=[]; self.world_minute=480.0; self.day=1; self.next_id=1
-        self.births=self.deaths=0; self.last_snapshot_at=0.0; self._thinking:set[int]=set(); self._load_or_seed()
+        self.births=self.deaths=0; self.last_snapshot_at=0.0; self._thinking:set[int]=set(); self._talking:set[tuple[int,int]]=set(); self._load_or_seed()
 
     @property
     def model_live(self)->bool: return bool(self.cfg.llm_enabled and self.mind.enabled)
@@ -81,8 +82,9 @@ class FlyCity:
                   self.rng.uniform(10,55),self.rng.uniform(8,45),self.rng.uniform(35,95),self.rng.uniform(5,60),next_decision_at=time.time()+self.rng.uniform(1,30))
             self.next_id+=1; self._destination(f,"wander"); self.flies[f.id]=f
 
-    def _event(self,kind:str,text:str,fly_id:int|None=None,other_id:int|None=None)->None:
-        self.events.append({"id":f"{int(time.time()*1000)}-{len(self.events)}","kind":kind,"text":text,"fly_id":fly_id,"other_id":other_id,"world_minute":round(self.world_minute,2),"day":self.day}); self.events=self.events[-300:]
+    def _event(self,kind:str,text:str,fly_id:int|None=None,other_id:int|None=None,**extra:Any)->None:
+        event={"id":f"{int(time.time()*1000)}-{len(self.events)}","kind":kind,"text":text,"fly_id":fly_id,"other_id":other_id,"world_minute":round(self.world_minute,2),"day":self.day}
+        event.update(extra); self.events.append(event); self.events=self.events[-300:]
     def _remember(self,f:Fly,text:str,importance:float=.5)->None:
         f.memories.append({"text":text[:180],"importance":round(importance,2),"day":self.day}); f.memories=f.memories[-30:]
     def save(self)->None:
@@ -183,7 +185,50 @@ class FlyCity:
     def _social(self,f:Fly,o:Fly,wd:float)->None:
         f.loneliness=max(0,f.loneliness-wd*.35);o.loneliness=max(0,o.loneliness-wd*.12);delta=wd*(.003+f.sociability*.002)
         f.relationships[str(o.id)]=max(-1,min(1,f.relationships.get(str(o.id),0)+delta));o.relationships[str(f.id)]=max(-1,min(1,o.relationships.get(str(f.id),0)+delta*.7))
-        if self.world_minute-f.last_social_world_minute>120:f.last_social_world_minute=self.world_minute;self._remember(f,f"I spent time with @{o.handle}.",.55);self._event("social",f"@{f.handle} spent time with @{o.handle}.",f.id,o.id)
+        if self.world_minute-f.last_social_world_minute>120:
+            f.last_social_world_minute=self.world_minute; self._remember(f,f"I spent time with @{o.handle}.",.55); self._event("social",f"@{f.handle} encountered @{o.handle}.",f.id,o.id)
+            pair=tuple(sorted((f.id,o.id)))
+            if pair not in self._talking and len(self._talking)<6:
+                o.last_social_world_minute=max(o.last_social_world_minute,self.world_minute); self._talking.add(pair); asyncio.create_task(self._conversation(f.id,o.id))
+
+    async def _conversation(self,a_id:int,b_id:int)->None:
+        pair=tuple(sorted((a_id,b_id)))
+        try:
+            a=self.flies.get(a_id); b=self.flies.get(b_id)
+            if not a or not b or not a.alive or not b.alive:return
+            turns:list[dict[str,Any]]=[]
+            sequence=((a,b),(b,a),(a,b))
+            for speaker,listener in sequence:
+                if not speaker.alive or not listener.alive:break
+                partner={"id":listener.id,"handle":listener.handle,"name":listener.name,"action":listener.action,"relationship":round(speaker.relationships.get(str(listener.id),0),2)}
+                line=await generate_turn(self.mind,self._context(speaker),partner,turns) if self.cfg.llm_enabled else None
+                source=self.cfg.llm_model if line else "local_dialogue"
+                line=line or self._local_line(speaker,listener,turns)
+                speaker.speech=line
+                turns.append({"speaker_id":speaker.id,"handle":speaker.handle,"text":line,"words_by":source})
+            if len(turns)<2:return
+            a_lines=[t for t in turns if t["speaker_id"]==a.id]; b_lines=[t for t in turns if t["speaker_id"]==b.id]
+            if b_lines:self._remember(a,f"I talked with @{b.handle}. They said: {b_lines[-1]['text']}",.68)
+            if a_lines:self._remember(b,f"I talked with @{a.handle}. They said: {a_lines[-1]['text']}",.68)
+            transcript=" · ".join(f"@{t['handle']}: “{t['text']}”" for t in turns)
+            self._event("dialogue",transcript,a.id,b.id,turns=turns)
+        finally:
+            self._talking.discard(pair)
+
+    def _local_line(self,speaker:Fly,listener:Fly,history:list[dict[str,Any]])->str:
+        relationship=speaker.relationships.get(str(listener.id),0)
+        if history:
+            heard=history[-1]["text"].lower()
+            if "food" in heard or "eat" in heard or "fruit" in heard:return self.rng.choice(["The orchard smelled strongest earlier.","I saw fruit near the market.","I haven't found much yet."])
+            if "water" in heard or "fountain" in heard:return self.rng.choice(["The fountain is still running.","I was heading toward the fountain too.","Water sounds good right now."])
+            if "sleep" in heard or "rest" in heard:return self.rng.choice(["The hive has been quiet.","I might rest after this.","The rooftop felt safer last time."])
+            return self.rng.choice(["I noticed that too.","Maybe. I'm still watching.","What made you think that?","I came from the other side of the city."])
+        if speaker.hunger>62:return "Have you found anything worth eating nearby?"
+        if speaker.thirst>62:return "I'm looking for water. Have you been to the fountain?"
+        if relationship>.3:return f"Good to see you again, @{listener.handle}."
+        if relationship<-.2:return "Keep some distance. I'm only passing through."
+        if speaker.loneliness>55:return "It's good to run into another fly out here."
+        return self.rng.choice(["What have you noticed around here?","Where are you headed?","The air feels different on this block.","Have you been near the market today?"])
 
     def _mate_ok(self,a:Fly,b:Fly)->bool:
         return a.alive and b.alive and a.sex!=b.sex and a.age_days>=3 and b.age_days>=3 and self.world_minute-a.last_mated_world_minute>=2880 and self.world_minute-b.last_mated_world_minute>=2880 and self.population<self.cfg.population_cap and a.energy>35 and b.energy>35
@@ -199,6 +244,6 @@ class FlyCity:
 
     def summary(self)->dict[str,Any]:
         m=int(self.world_minute%1440)
-        return {"name":"FlyCity","version":"0.1.0","running":True,"day":self.day,"minute_of_day":m,"time_label":f"{m//60:02d}:{m%60:02d}","population":self.population,"total_flies":len(self.flies),"births":self.births,"deaths":self.deaths,"initial_population":self.cfg.initial_population,"world_minutes_per_real_second":self.cfg.world_minutes_per_real_second,"decision_model":self.cfg.llm_model if self.model_live else "local autonomy (set OPENAI_API_KEY to enable Luna)","model_live":self.model_live,"locations":LOCATIONS,"flies":[f.public() for f in self.flies.values() if f.alive],"events":self.events[-40:][::-1]}
+        return {"name":"FlyCity","version":"0.2.0","running":True,"day":self.day,"minute_of_day":m,"time_label":f"{m//60:02d}:{m%60:02d}","population":self.population,"total_flies":len(self.flies),"births":self.births,"deaths":self.deaths,"initial_population":self.cfg.initial_population,"world_minutes_per_real_second":self.cfg.world_minutes_per_real_second,"decision_model":self.cfg.llm_model if self.model_live else "local autonomy (set OPENAI_API_KEY to enable Luna)","model_live":self.model_live,"locations":LOCATIONS,"flies":[f.public() for f in self.flies.values() if f.alive],"events":self.events[-40:][::-1]}
     def fly_detail(self,fly_id:int)->dict[str,Any]|None:
         f=self.flies.get(fly_id);return f.public(True) if f else None
