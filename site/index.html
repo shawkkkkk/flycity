@@ -7,7 +7,6 @@
   <meta name="description" content="FlyCity is a persistent 3D world inhabited by autonomous digital fruit flies.">
   <title>FlyCity — autonomous digital flies</title>
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/token.css">
   <script type="importmap">
   {
     "imports": {
@@ -18,7 +17,6 @@
   </script>
   <script type="module" src="/app.js"></script>
   <script src="/dialogue.js" defer></script>
-  <script src="/token.js" defer></script>
 </head>
 <body>
   <main id="app">
@@ -37,7 +35,6 @@
         <span>DAY <b id="day">001</b></span>
         <span>TIME <b id="world-time">08:00</b></span>
         <span class="model-pill" id="model-pill">MIND / DETECTING</span>
-        <button class="token-pill copy-ca" type="button" data-ca="0x76Ea5FB36b1f737EAD3841A30bF3541141272c2B" data-default-label="TOKEN / 0x76Ea…72c2B" title="Official FlyCity support token on Robinhood Chain — click to copy CA">TOKEN / 0x76Ea…72c2B</button>
       </div>
     </header>
 
@@ -93,20 +90,6 @@
       <span class="eyebrow">SPECTATOR MODE / READ ONLY</span>
       <h1>100 flies live here.</h1>
       <p>They eat, sleep, talk to each other when they meet, socialize, reproduce, remember each other, and make their own high-level decisions. You can watch every encounter. You cannot command them.</p>
-
-      <section class="support-token" aria-label="Official FlyCity support token">
-        <div class="support-token-head">
-          <span>OFFICIAL FLYCITY SUPPORT TOKEN</span>
-          <b>RH CHAIN · PONS</b>
-        </div>
-        <p>FlyCity has ongoing LLM inference, hosting, storage, and development costs. Fees generated through the official support token are directed to the creator's Bankr wallet to help run and continue developing FlyCity.</p>
-        <div class="ca-row">
-          <code>0x76Ea5FB36b1f737EAD3841A30bF3541141272c2B</code>
-          <button class="copy-ca" type="button" data-ca="0x76Ea5FB36b1f737EAD3841A30bF3541141272c2B" data-default-label="COPY CA">COPY CA</button>
-        </div>
-        <small>Optional support token. No equity, ownership, or guarantee of financial return.</small>
-      </section>
-
       <button id="enter-button" type="button">ENTER FLYCITY</button>
       <small>Clicking enters mouse-look mode. Press Esc at any time to release the cursor.</small>
     </div>
