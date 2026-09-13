@@ -52,3 +52,23 @@ def test_public_snapshot_is_readable(tmp_path):
     detail = city.fly_detail(1)
     assert detail and "memories" in detail and "relationships" in detail
     store.close()
+
+
+def test_encounter_creates_visible_dialogue(tmp_path):
+    city, store = make_city(tmp_path)
+    first = city.flies[1]
+    second = city.flies[2]
+    first.x = second.x = 0.0
+    first.y = second.y = 2.0
+    first.z = second.z = 0.0
+
+    asyncio.run(city._conversation(first.id, second.id))
+
+    dialogue = next(event for event in reversed(city.events) if event["kind"] == "dialogue")
+    assert dialogue["fly_id"] == first.id
+    assert dialogue["other_id"] == second.id
+    assert len(dialogue["turns"]) >= 2
+    assert {turn["speaker_id"] for turn in dialogue["turns"]} == {first.id, second.id}
+    assert first.speech
+    assert second.speech
+    store.close()
