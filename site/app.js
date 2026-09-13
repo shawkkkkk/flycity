@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
 const el = (id) => document.getElementById(id);
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 
 const ui = {
@@ -193,7 +193,7 @@ window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camer
 function animate(now){
   requestAnimationFrame(animate);const dt=Math.min(.05,(now-ui.lastFrame)/1000);ui.lastFrame=now;
   for(const mesh of flies.values()){
-    mesh.position.lerp(mesh.userData.target,Math.min(1,dt*3.2));const delta=mesh.userData.target.clone().sub(mesh.position);if(delta.lengthSq()>.001){const yaw=Math.atan2(delta.x,delta.z);mesh.rotation.y=THREE.MathUtils.lerp(mesh.rotation.y,yaw,.08)}
+    mesh.position.lerp(mesh.userData.target,Math.min(1,dt*3.2));const delta=mesh.userData.target.clone().sub(mesh.position);if(delta.lengthSq()>.001){const yaw=Math.atan2(delta.x,delta.z)+Math.PI;mesh.rotation.y=THREE.MathUtils.lerp(mesh.rotation.y,yaw,.08)}
     const [wl,wr]=mesh.userData.wings||[];if(wl&&wr){const flap=Math.sin(now*.055)*.58;wl.rotation.z=.30+flap;wr.rotation.z=-.30-flap}
   }
   if(selectionRing?.userData.followTarget){const p=selectionRing.userData.followTarget.position;selectionRing.position.set(p.x,p.y-.55,p.z);selectionRing.rotation.z+=dt*.7}
